@@ -1,0 +1,3 @@
+vim ~/.bash_profile
+:set fileformat=unix
+chmod +x compile.sh
