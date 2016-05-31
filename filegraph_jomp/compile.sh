@@ -15,6 +15,6 @@ rm -rf $BIN_PATH/$PROJECT_NAME
 mkdir $BIN_PATH/$PROJECT_NAME  
 #  
 # Compile the project  
-javac -d $BIN_PATH/$PROJECT_NAME -classpath $JAR_PATH/guava-19.0.jar:$JAR_PATH/commons-codec-1.9.jar:$JAR_PATH/json-20160212.jar @$PROJECT_PATH/sources.list
+javac -d $BIN_PATH/ -classpath $JAR_PATH/guava-19.0.jar:$JAR_PATH/commons-codec-1.9.jar:$JAR_PATH/json-20160212.jar @$PROJECT_PATH/sources.list
 #
 # eof

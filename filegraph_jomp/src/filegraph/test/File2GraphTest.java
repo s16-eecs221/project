@@ -135,10 +135,10 @@ public class File2GraphTest {
 
 	public static void main(String args[]) {
 		File2GraphTest f2gTest = new File2GraphTest();
-		f2gTest.fileCreateTest(100, 2, "M");
-		f2gTest.byteHashTest();
-		f2gTest.fileHashPropertyTest();
-		f2gTest.lineGraphTest();
+		//f2gTest.fileCreateTest(100, 2, "M");
+		//f2gTest.byteHashTest();
+		//f2gTest.fileHashPropertyTest();
+		//f2gTest.lineGraphTest();
 		f2gTest.file2GraphSimpleTest();
 	}
 }
