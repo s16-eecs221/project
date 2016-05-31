@@ -2,7 +2,7 @@
 # Define some constants
 # :set fileformat=unix
 PROJECT_NAME=filegraph
-PROJECT_PATH=/data/users/yskyerda/filegraph_jomp
+PROJECT_PATH=/data/users/yskyerda/project/filegraph_jomp
 JAR_PATH=$PROJECT_PATH/libs
 BIN_PATH=$PROJECT_PATH/bin
 SRC_PATH=$PROJECT_PATH/src
