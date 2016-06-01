@@ -178,7 +178,6 @@ public class File2GraphTest {
 		System.out.println("Sequential time: " + totalTime + "ms");
 		// System.out.println(root.getChild_nodes());
 
-		/**
 		// para 1 bytehash
 		startTime = System.currentTimeMillis();
 		FileGraphIndexingP1 f2gp1 = new FileGraphIndexingP1(new ByteHashFunctionP(hashProp));
@@ -194,7 +193,7 @@ public class File2GraphTest {
 
 		// result compare
 		System.out.println("If result same: " + sigature.equals(sigaturecp1));
-		**/
+
 		// para 2 filechunk
 		startTime = System.currentTimeMillis();
 		FileGraphIndexingP2 f2gp2 = new FileGraphIndexingP2(new ByteHashFunctionP(hashProp));

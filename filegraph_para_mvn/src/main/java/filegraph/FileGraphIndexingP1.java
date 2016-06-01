@@ -8,6 +8,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import filegraph.obj.FileGraphLeaf;
 import filegraph.obj.FileGraphNode;
@@ -17,6 +21,7 @@ import filegraph.obj.LineGraphEdge;
 import filegraph.obj.LineGraphVertex;
 import filegraph.utl.ByteHashFunctionP;
 import filegraph.utl.LocalFile;
+import filegraph.utl.parallel.ByteHashFuctionParaTask;
 
 public class FileGraphIndexingP1 {
 	private ByteHashFunctionP bytehfP;
@@ -36,21 +41,36 @@ public class FileGraphIndexingP1 {
 		Runtime runtime = Runtime.getRuntime();
 		int pNum = runtime.availableProcessors();
 
-		for (int i = start_chunck; i < end_chunk; i++) {
-			FileGraphLeaf leaf = new FileGraphLeaf();
-			leaf.setNode_id(i);
-			if (i < end_chunk - 1)
-				leaf.getAdj_ids().add(i + 1);
-			if (i > start_chunck)
-				leaf.getAdj_ids().add(i - 1);
-			int hash_value = bytehfP.hashBytes(LocalFile.readBinaryFile(chunck_dir + "/" + file_name + i + ".bin"),
-					pNum);
-			// System.out.println(file_name + i + " adjs:" + leaf.getAdj_ids());
-			leaf.setHash_value(hash_value);
-			if (!hash_values.containsKey(hash_value))
-				hash_values.put(hash_value, new ArrayList<Integer>());
-			hash_values.get(hash_value).add(i);
-			root.getChild_nodes().add(leaf);
+		try {
+			ForkJoinPool forkJoinPool = new ForkJoinPool();
+			for (int i = start_chunck; i < end_chunk; i++) {
+
+				FileGraphLeaf leaf = new FileGraphLeaf();
+				leaf.setNode_id(i);
+				if (i < end_chunk - 1)
+					leaf.getAdj_ids().add(i + 1);
+				if (i > start_chunck)
+					leaf.getAdj_ids().add(i - 1);
+
+				byte[] file_data = LocalFile.readBinaryFile(chunck_dir + "/" + file_name + i + ".bin");
+
+				Future<Integer> result = forkJoinPool.submit(
+						new ByteHashFuctionParaTask(0, file_data.length, file_data, pNum, bytehfP.getHashProp()));
+				int hash_value = result.get();
+				leaf.setHash_value(hash_value);
+				if (!hash_values.containsKey(hash_value))
+					hash_values.put(hash_value, new ArrayList<Integer>());
+				hash_values.get(hash_value).add(i);
+				root.getChild_nodes().add(leaf);
+				// System.out.println(file_name + i + " adjs:" +
+				// leaf.getAdj_ids());
+			}
+			forkJoinPool.shutdown();
+			forkJoinPool.awaitTermination(1000, TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		} catch (ExecutionException e) {
+			e.printStackTrace();
 		}
 
 		// for every hash_value, add adj
