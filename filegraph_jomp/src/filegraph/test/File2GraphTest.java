@@ -10,14 +10,17 @@ import java.util.Set;
 import org.apache.commons.codec.binary.Base64;
 
 import filegraph.FileGraphIndexing;
+import filegraph.FileGraphIndexingP;
 import filegraph.obj.FileGraphRoot;
 import filegraph.obj.FileHashProperty;
 import filegraph.obj.LineGraph;
 import filegraph.obj.LineGraphEdge;
 import filegraph.obj.LineGraphVertex;
 import filegraph.utl.ByteHashFunction;
+import filegraph.utl.ByteHashFunctionP;
 import filegraph.utl.FileGraphUtli;
 import filegraph.utl.LocalFile;
+import filegraph.utl.parallel.ParaTaskTest;
 
 public class File2GraphTest {
 	public void fileCreateTest(int total, int file_size, String file_unit) {
@@ -117,6 +120,7 @@ public class File2GraphTest {
 	}
 
 	public void file2GraphSimpleTest() {
+		long startTime = System.currentTimeMillis();
 		FileGraphIndexing f2g = new FileGraphIndexing();
 		FileGraphRoot root = f2g.filechunks2graph("files", "file", 0, 99);
 		System.out.println(root.toString());
@@ -131,14 +135,70 @@ public class File2GraphTest {
 		System.out.println(sigaturecp);
 
 		System.out.println(sigature.equals(sigaturecp));
+
+		long endTime = System.currentTimeMillis();
+		long totalTime = endTime - startTime;
+		System.out.println(totalTime);
+	}
+
+	public void file2GraphParaSimpleTest() {
+		Runtime runtime = Runtime.getRuntime();
+		int pNum = runtime.availableProcessors();
+		System.out.println("Number of processors available to the Java Virtual Machine: " + pNum);
+		FileHashProperty hashProp = new FileHashProperty(50, 32);
+		// seq
+		long startTime = System.currentTimeMillis();
+		FileGraphIndexing f2g = new FileGraphIndexing(new ByteHashFunction(hashProp));
+		FileGraphRoot root = f2g.filechunks2graph("files", "file", 0, 99);
+		System.out.println(root.toString());
+		LineGraph linegraph = f2g.Graph2LineGraph(root);
+		String sigature = linegraph.getEdges().toString();
+		System.out.println(sigature);
+		long endTime = System.currentTimeMillis();
+		long totalTime = endTime - startTime;
+		System.out.println("Sequential time: " + totalTime + "ms");
+		// System.out.println(root.getChild_nodes());
+
+		// para
+		startTime = System.currentTimeMillis();
+		FileGraphIndexingP f2gp = new FileGraphIndexingP(new ByteHashFunctionP(hashProp));
+		FileGraphRoot rootcp = f2gp.filechunks2graphP("files", "cpfile", 0, 99);
+		System.out.println(rootcp.toString());
+		LineGraph linegraphcp = f2gp.Graph2LineGraphP(rootcp);
+		String sigaturecp = linegraphcp.getEdges().toString();
+		System.out.println(sigaturecp);
+
+		endTime = System.currentTimeMillis();
+		totalTime = endTime - startTime;
+		System.out.println("Parallet time: " + totalTime + "ms");
+
+		// result compare
+		System.out.println("If result same: " + sigature.equals(sigaturecp));
+	}
+
+	public void joinforkTest() {
+		Runtime runtime = Runtime.getRuntime();
+		int pNum = runtime.availableProcessors();
+		System.out.println("Number of processors available to the Java Virtual Machine: " + pNum);
+		byte[] data = new byte[10];
+		ParaTaskTest left = new ParaTaskTest("left", 0, data.length / 2, data);
+		ParaTaskTest right = new ParaTaskTest("right", data.length / 2, data.length, data);
+		left.fork();
+		right.fork();
+		left.join();
+		right.join();
+		System.out.println("Result data:");
+		for (int i = 0; i < data.length; i++)
+			System.out.print(data[i] + " ");
 	}
 
 	public static void main(String args[]) {
 		File2GraphTest f2gTest = new File2GraphTest();
-		//f2gTest.fileCreateTest(100, 2, "M");
-		//f2gTest.byteHashTest();
-		//f2gTest.fileHashPropertyTest();
-		//f2gTest.lineGraphTest();
-		f2gTest.file2GraphSimpleTest();
+		// f2gTest.fileCreateTest(100, 2, "M");
+		// f2gTest.byteHashTest();
+		// f2gTest.fileHashPropertyTest();
+		// f2gTest.lineGraphTest();
+		f2gTest.file2GraphParaSimpleTest();
+		// f2gTest.joinforkTest();
 	}
 }
