@@ -47,8 +47,8 @@ public class FilechunksHashPTask extends RecursiveAction {
 					leaf.getAdj_ids().add(i + 1);
 				if (i > min)
 					leaf.getAdj_ids().add(i - 1);
-				int hash_value = bytehfP.hashBytes(LocalFile.readBinaryFile(chunck_dir + "/" + file_name + i + ".bin"),
-						availP);
+				byte[] data = LocalFile.readBinaryFile(chunck_dir + "/" + file_name + i + ".bin");
+				int hash_value = bytehfP.hashBytes(data, 0, data.length, availP);
 				// System.out.println(file_name + i + " adjs:" +
 				// leaf.getAdj_ids());
 				leaf.setHash_value(hash_value);

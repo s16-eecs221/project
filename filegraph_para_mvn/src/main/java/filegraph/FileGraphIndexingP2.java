@@ -17,8 +17,9 @@ import filegraph.obj.LineGraph;
 import filegraph.obj.LineGraphEdge;
 import filegraph.obj.LineGraphVertex;
 import filegraph.utl.ByteHashFunctionP;
-
+import filegraph.utl.LocalFile;
 import filegraph.utl.parallel.FilechunksHashPTask;
+import filegraph.utl.parallel.SingleFileHashPTask;
 
 public class FileGraphIndexingP2 {
 	private ByteHashFunctionP bytehfP;
@@ -75,6 +76,49 @@ public class FileGraphIndexingP2 {
 		 * root.getChild_nodes().get(i).getNode_id() + " adjs:" +
 		 * root.getChild_nodes().get(i).getAdj_ids()); }
 		 **/
+		return root;
+	}
+
+	public FileGraphRoot singlefile2graphP(String file_dir, String file_name, int chunk_num) {
+		Map<Integer, List<Integer>> hash_values = new HashMap<Integer, List<Integer>>();
+		// create file graph structure
+		FileGraphRoot root = new FileGraphRoot();
+		Runtime runtime = Runtime.getRuntime();
+		int pNum = runtime.availableProcessors();
+
+		byte[] data = LocalFile.readBinaryFile(file_dir + "/" + file_name + ".bin");
+		int chunk_size = data.length / chunk_num;
+		try {
+			ForkJoinPool forkJoinPool = new ForkJoinPool();
+
+			forkJoinPool.submit(new SingleFileHashPTask(0, chunk_num, chunk_num, chunk_size, pNum, bytehfP, hash_values,
+					root, data));
+
+			forkJoinPool.shutdown();
+			forkJoinPool.awaitTermination(1000, TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		Collections.sort(root.getChild_nodes());
+
+		// for every hash_value, add adj
+		Iterator<Entry<Integer, List<Integer>>> iter = hash_values.entrySet().iterator();
+		while (iter.hasNext()) {
+			Entry<Integer, List<Integer>> entry = iter.next();
+			List<Integer> ids = entry.getValue();
+			// System.out.println("hash:" + entry.getKey() + ", list:" + ids);
+			for (Integer id : ids) {
+				List<Integer> adjs = root.getChild_nodes().get(id).getAdj_ids();
+				adjs.addAll(ids);
+				adjs = new ArrayList<Integer>(new HashSet<Integer>(adjs));
+				adjs.remove(id);
+				root.getChild_nodes().get(id).setAdj_ids(adjs);
+			}
+		}
+
+		root.setHashProp(bytehfP.getHashProp());
 		return root;
 	}
 

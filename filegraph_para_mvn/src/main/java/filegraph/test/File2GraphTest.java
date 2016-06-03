@@ -6,6 +6,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.codec.binary.Base64;
 
@@ -22,19 +24,18 @@ import filegraph.utl.ByteHashFunctionP;
 import filegraph.utl.FileGraphUtli;
 import filegraph.utl.LocalFile;
 import filegraph.utl.parallel.ParaTaskTest;
+import filegraph.utl.parallel.ParaTaskTest2;
 
 public class File2GraphTest {
-	public void fileCreateTest(int total, int file_size, String file_unit) {
-		String doc = "files";
+	public void fileCreateTest(int total, int file_size, String file_dir, String file_name, String file_unit) {
 		for (int i = 0; i < total; i++) {
-			String fileName = doc + "/file" + i + ".bin";
+			String fileName = file_dir + "/" + file_name + i + ".bin";
 			LocalFile.create(fileName, file_size, file_unit);
 		}
 		for (int i = 0; i < total; i++) {
-			String fileName = doc + "/cpfile" + i + ".bin";
-			String oldFile = doc + "/file" + i + ".bin";
+			String fileName = file_dir + "/cp" + file_name + i + ".bin";
+			String oldFile = file_dir + "/" + file_name + i + ".bin";
 			LocalFile.copyFile(oldFile, fileName);
-
 		}
 	}
 
@@ -44,12 +45,12 @@ public class File2GraphTest {
 		for (int i = 0; i < 100; i++) {
 			String fileName = doc + "/file" + i + ".bin";
 			byte[] data = LocalFile.readBinaryFile(fileName);
-			System.out.println(hf.hashBytes(data) + "\t" + fileName);
+			System.out.println(hf.hashBytes(data, 0, data.length) + "\t" + fileName);
 		}
 		for (int i = 0; i < 100; i++) {
 			String fileName = doc + "/cpfile" + i + ".bin";
 			byte[] data = LocalFile.readBinaryFile(fileName);
-			System.out.println(hf.hashBytes(data) + "\t" + fileName);
+			System.out.println(hf.hashBytes(data, 0, data.length) + "\t" + fileName);
 		}
 	}
 
@@ -159,16 +160,16 @@ public class File2GraphTest {
 		System.out.println(totalTime);
 	}
 
-	public void file2GraphParaSimpleTest() {
+	public void file2GraphParaSimpleTest(String file_dir, String filename, int files) {
 		// System.setProperty("java.util.Arrays.useLegacyMergeSort", "true");
 		Runtime runtime = Runtime.getRuntime();
 		int pNum = runtime.availableProcessors();
 		System.out.println("Number of processors available to the Java Virtual Machine: " + pNum);
-		FileHashProperty hashProp = new FileHashProperty(50, 32);
+		FileHashProperty hashProp = new FileHashProperty(files / 2, files / 4);
 		// seq
 		long startTime = System.currentTimeMillis();
 		FileGraphIndexing f2g = new FileGraphIndexing(new ByteHashFunction(hashProp));
-		FileGraphRoot root = f2g.filechunks2graph("files", "file", 0, 99);
+		FileGraphRoot root = f2g.filechunks2graph(file_dir, filename, 0, files - 1);
 		// System.out.println(root.toString());
 		LineGraph linegraph = f2g.Graph2LineGraph(root);
 		String sigature = linegraph.getEdges().toString();
@@ -181,7 +182,7 @@ public class File2GraphTest {
 		// para 1 bytehash
 		startTime = System.currentTimeMillis();
 		FileGraphIndexingP1 f2gp1 = new FileGraphIndexingP1(new ByteHashFunctionP(hashProp));
-		FileGraphRoot rootcp1 = f2gp1.filechunks2graphP("files", "cpfile", 0, 99);
+		FileGraphRoot rootcp1 = f2gp1.filechunks2graphP(file_dir, "cp" + filename, 0, files - 1);
 		// System.out.println(rootcp1.toString());
 		LineGraph linegraphcp1 = f2gp1.Graph2LineGraphP(rootcp1);
 		String sigaturecp1 = linegraphcp1.getEdges().toString();
@@ -197,7 +198,7 @@ public class File2GraphTest {
 		// para 2 filechunk
 		startTime = System.currentTimeMillis();
 		FileGraphIndexingP2 f2gp2 = new FileGraphIndexingP2(new ByteHashFunctionP(hashProp));
-		FileGraphRoot rootcp2 = f2gp2.filechunks2graphP("files", "cpfile", 0, 99);
+		FileGraphRoot rootcp2 = f2gp2.filechunks2graphP(file_dir, "cp" + filename, 0, files - 1);
 		// System.out.println(rootcp2.toString());
 		LineGraph linegraphcp2 = f2gp2.Graph2LineGraphP(rootcp2);
 		String sigaturecp2 = linegraphcp2.getEdges().toString();
@@ -227,13 +228,111 @@ public class File2GraphTest {
 			System.out.print(data[i] + " ");
 	}
 
+	public void joinforkTest2() {
+		try {
+			Runtime runtime = Runtime.getRuntime();
+			int pNum = runtime.availableProcessors();
+			System.out.println("Number of processors available to the Java Virtual Machine: " + pNum);
+			ForkJoinPool forkJoinPool = new ForkJoinPool();
+			long startTime = System.currentTimeMillis();
+			for (int i = 0; i < 16; i++)
+				forkJoinPool.submit(new ParaTaskTest2(String.valueOf(i)));
+
+			forkJoinPool.shutdown();
+			forkJoinPool.awaitTermination(1000, TimeUnit.SECONDS);
+
+			long endTime = System.currentTimeMillis();
+			long totalTime = endTime - startTime;
+			System.out.println("Total time: " + totalTime + "ms");
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	public void singlefile2GraphTest(String file_dir, String filename) {
+		long startTime = System.currentTimeMillis();
+		FileGraphIndexing f2g = new FileGraphIndexing();
+		FileGraphRoot root = f2g.singlefile2graph(file_dir, filename + "0", 100);
+		System.out.println(root.toString());
+		LineGraph linegraph = f2g.Graph2LineGraph(root);
+		String sigature = linegraph.getEdges().toString();
+		System.out.println(sigature);
+
+		FileGraphRoot rootcp = f2g.singlefile2graph(file_dir, "cp" + filename + "0", 100);
+		System.out.println(rootcp.toString());
+		LineGraph linegraphcp = f2g.Graph2LineGraph(rootcp);
+		String sigaturecp = linegraphcp.getEdges().toString();
+		System.out.println(sigaturecp);
+
+		long endTime = System.currentTimeMillis();
+		long totalTime = endTime - startTime;
+		System.out.println("Evaluation time:" + totalTime + "ms");
+		System.out.println("If result same: " + sigature.equals(sigaturecp));
+	}
+
+	public void singlefile2GraphParaTest(String file_dir, String filename, int chunk_size) {
+		// System.setProperty("java.util.Arrays.useLegacyMergeSort", "true");
+		Runtime runtime = Runtime.getRuntime();
+		int pNum = runtime.availableProcessors();
+		System.out.println("Number of processors available to the Java Virtual Machine: " + pNum);
+		FileHashProperty hashProp = new FileHashProperty(chunk_size / 2, chunk_size / 4);
+		// seq
+		long startTime = System.currentTimeMillis();
+		FileGraphIndexing f2g = new FileGraphIndexing(new ByteHashFunction(hashProp));
+		FileGraphRoot root = f2g.singlefile2graph(file_dir, filename + "0", chunk_size);
+		// System.out.println(root.toString());
+		LineGraph linegraph = f2g.Graph2LineGraph(root);
+		String sigature = linegraph.getEdges().toString();
+		// System.out.println(sigature);
+		long endTime = System.currentTimeMillis();
+		long totalTime = endTime - startTime;
+		System.out.println("Sequential time: " + totalTime + "ms");
+		// System.out.println(root.getChild_nodes());
+
+		// para 1 bytehash
+		startTime = System.currentTimeMillis();
+		FileGraphIndexingP1 f2gp1 = new FileGraphIndexingP1(new ByteHashFunctionP(hashProp));
+		FileGraphRoot rootcp1 = f2gp1.singlefile2graphP(file_dir, filename + "0", chunk_size);
+		// System.out.println(rootcp1.toString());
+		LineGraph linegraphcp1 = f2gp1.Graph2LineGraphP(rootcp1);
+		String sigaturecp1 = linegraphcp1.getEdges().toString();
+		// System.out.println(sigaturecp1);
+
+		endTime = System.currentTimeMillis();
+		totalTime = endTime - startTime;
+		System.out.println("Parallet time on bytehash: " + totalTime + "ms");
+
+		// result compare
+		System.out.println("If result same: " + sigature.equals(sigaturecp1));
+
+		// para 2 filechunk
+		startTime = System.currentTimeMillis();
+		FileGraphIndexingP2 f2gp2 = new FileGraphIndexingP2(new ByteHashFunctionP(hashProp));
+		FileGraphRoot rootcp2 = f2gp2.singlefile2graphP(file_dir, filename + "0", chunk_size);
+		// System.out.println(rootcp2.toString());
+		LineGraph linegraphcp2 = f2gp2.Graph2LineGraphP(rootcp2);
+		String sigaturecp2 = linegraphcp2.getEdges().toString();
+		// System.out.println(sigaturecp2);
+
+		endTime = System.currentTimeMillis();
+		totalTime = endTime - startTime;
+		System.out.println("Parallet time on bytehash and filechunk: " + totalTime + "ms");
+
+		// result compare
+		System.out.println("If result same: " + sigature.equals(sigaturecp2));
+
+	}
+
 	public static void main(String args[]) {
 		File2GraphTest f2gTest = new File2GraphTest();
-		// f2gTest.fileCreateTest(100, 2, "M");
+		f2gTest.fileCreateTest(128, 1, "test_files/files-128m", "file", "M");
 		// f2gTest.byteHashTest();
 		// f2gTest.fileHashPropertyTest();
 		// f2gTest.lineGraphTest();
-		f2gTest.file2GraphParaSimpleTest();
 		// f2gTest.joinforkTest();
+		// f2gTest.joinforkTest2();
+		f2gTest.file2GraphParaSimpleTest("test_files/files-128m", "file", 128);
+		// f2gTest.singlefile2GraphParaTest("single_files", "1G", 1024);
 	}
 }

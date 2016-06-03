@@ -40,7 +40,8 @@ public class FileGraphIndexing {
 				leaf.getAdj_ids().add(i + 1);
 			if (i > start_chunck)
 				leaf.getAdj_ids().add(i - 1);
-			int hash_value = bytehf.hashBytes(LocalFile.readBinaryFile(chunck_dir + "/" + file_name + i + ".bin"));
+			byte[] data = LocalFile.readBinaryFile(chunck_dir + "/" + file_name + i + ".bin");
+			int hash_value = bytehf.hashBytes(data, 0, data.length);
 			// System.out.println(file_name + i + " adjs:" + leaf.getAdj_ids());
 			leaf.setHash_value(hash_value);
 			if (!hash_values.containsKey(hash_value))
@@ -71,6 +72,52 @@ public class FileGraphIndexing {
 		 * root.getChild_nodes().get(i).getNode_id() + " adjs:" +
 		 * root.getChild_nodes().get(i).getAdj_ids()); }
 		 **/
+		return root;
+	}
+
+	public FileGraphRoot singlefile2graph(String file_dir, String file_name, int chunk_num) {
+		Map<Integer, List<Integer>> hash_values = new HashMap<Integer, List<Integer>>();
+		// create file graph structure
+		FileGraphRoot root = new FileGraphRoot();
+		byte[] data = LocalFile.readBinaryFile(file_dir + "/" + file_name + ".bin");
+		int chunk_size = data.length / chunk_num;
+		for (int i = 0, start_num = 0; i < chunk_num; i++) {
+			FileGraphLeaf leaf = new FileGraphLeaf();
+			leaf.setNode_id(i);
+			if (i < chunk_num - 1)
+				leaf.getAdj_ids().add(i + 1);
+			if (i > 0)
+				leaf.getAdj_ids().add(i - 1);
+			int hash_value;
+			if (i < chunk_num - 1) {
+				hash_value = bytehf.hashBytes(data, start_num, start_num + chunk_size);
+				start_num += chunk_size;
+			} else
+				hash_value = bytehf.hashBytes(data, start_num, data.length);
+			// System.out.println(file_name + i + " adjs:" + leaf.getAdj_ids());
+			leaf.setHash_value(hash_value);
+			if (!hash_values.containsKey(hash_value))
+				hash_values.put(hash_value, new ArrayList<Integer>());
+			hash_values.get(hash_value).add(i);
+			root.getChild_nodes().add(leaf);
+		}
+
+		// for every hash_value, add adj
+		Iterator<Entry<Integer, List<Integer>>> iter = hash_values.entrySet().iterator();
+		while (iter.hasNext()) {
+			Entry<Integer, List<Integer>> entry = iter.next();
+			List<Integer> ids = entry.getValue();
+			// System.out.println("hash:" + entry.getKey() + ", list:" + ids);
+			for (Integer id : ids) {
+				List<Integer> adjs = root.getChild_nodes().get(id).getAdj_ids();
+				adjs.addAll(ids);
+				adjs = new ArrayList<Integer>(new HashSet<Integer>(adjs));
+				adjs.remove(id);
+				root.getChild_nodes().get(id).setAdj_ids(adjs);
+			}
+		}
+
+		root.setHashProp(bytehf.getHashProp());
 		return root;
 	}
 

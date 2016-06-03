@@ -19,16 +19,15 @@ public class ByteHashFunction {
 		hashProp = new FileHashProperty(size, array_length);
 	}
 
-	public int hashBytes(byte[] data) {
+	public int hashBytes(byte[] data, int start, int end) {
 		int value = 0;
 		int array_length = hashProp.getArray_length();
-		int length = data.length;
 		int[] arrayA = hashProp.getHash_arrayA();
 		int[] arrayB = hashProp.getHash_arrayB();
 		int prime = hashProp.getPrime();
 		int hash_size = hashProp.getHash_size();
 
-		for (int i = 0; i < length; i++) {
+		for (int i = start; i < end; i++) {
 			int v = arrayA[i % array_length] * data[i] + arrayB[i % array_length];
 			while (v < 0)
 				v += prime;
